@@ -74,3 +74,29 @@ button.tab { background:#fff; color:var(--morado); border:1px solid var(--morado
 button.tab.activo { background:var(--morado); color:#fff; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; } .chips button { font-size:.85rem; padding:5px 10px; }
 .sep { margin-top:16px; }
+.chat-btn { position:fixed; right:18px; bottom:18px; width:54px; height:54px; border-radius:50%; font-size:1.4rem; background:var(--coral); z-index:30; box-shadow:0 4px 12px #0003; }
+.chat-panel { position:fixed; right:18px; bottom:84px; width:340px; max-width:calc(100vw - 36px); height:420px; max-height:70vh; background:#fff; border-radius:16px; box-shadow:0 8px 24px #0004; display:flex; flex-direction:column; overflow:hidden; z-index:30; animation:subir .25s ease; }
+@keyframes subir { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+.chat-cab { background:var(--morado); color:#fff; padding:12px; font-weight:600; }
+.chat-msgs { flex:1; overflow:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+.burbuja { margin:0; padding:8px 12px; border-radius:14px; max-width:85%; white-space:pre-wrap; animation:subir .2s ease; }
+.burbuja.asistente { background:var(--lila); align-self:flex-start; }
+.burbuja.usuaria { background:var(--morado); color:#fff; align-self:flex-end; }
+.chat-in { display:flex; gap:6px; padding:8px; border-top:1px solid #eee; }
+.chat-in input { flex:1; padding:8px; border:1px solid #ccc; border-radius:10px; min-width:0; }
+@media (max-width:700px) { .chat-btn { bottom:80px; } .chat-panel { bottom:146px; } }
+:root { --fucsia:#e0107f; }
+.lateral { background:var(--oscuro); border-right:0; color:#fff; }
+.marca { color:#fff; }
+.lateral nav button { color:#fff; background:transparent; }
+.lateral nav button:hover { background:#ffffff1f; }
+.lateral nav button.activo { background:var(--fucsia); color:#fff; }
+.lateral nav button svg { flex-shrink:0; }
+.formv textarea { padding:10px; border:1px solid #ccc; border-radius:10px; width:100%; box-sizing:border-box; font-family:inherit; }
+@media (max-width:700px) { .lateral { border-top:0; } }
+/* Animaciones básicas */
+@keyframes aparece { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.aparece { animation:aparece .5s ease both; }
+.card { transition:transform .2s, box-shadow .2s; } .card:hover { transform:translateY(-3px); box-shadow:0 6px 14px #0002; }
+button { transition:filter .2s, transform .1s; } button:hover:not(:disabled) { filter:brightness(1.1); } button:active { transform:scale(.97); }
+.admin { max-width:900px; margin:0 auto; padding:16px; }
