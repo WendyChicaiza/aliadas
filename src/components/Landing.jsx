@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { MODULOS } from '../modulos';
+import Chatbot from './Chatbot';
+import Contacto from './Contacto';
+import Catalogo from './Catalogo';
 
 const BENEFICIOS = [
   { id: 1, t: 'Tus cuentas claras', d: 'Registra ingresos y gastos y mira tu ganancia real.' },
@@ -12,7 +15,7 @@ const COMUNIDAD = [
   { id: 2, n: 'Emprendedora 2', f: 'Ejemplo: aquí irá el testimonio de una usuaria real.' }
 ];
 
-function Landing({ onIngresar, onRegistro }) {
+function Landing({ onIngresar, onRegistro, onAdmin }) {
   const [ventas, setVentas] = useState(850);
   const [costos, setCostos] = useState(520);
   const ganancia = ventas - costos;
@@ -22,7 +25,7 @@ function Landing({ onIngresar, onRegistro }) {
     <div className="landing">
       <header className="topbar">
         <img src="logo.png" alt="ALIADAS" className="logo-img" />
-        <nav className="links"><a href="#beneficios">Beneficios</a><a href="#pasos">Cómo funciona</a><a href="#comunidad">Comunidad</a></nav>
+        <nav className="links"><a href="#beneficios">Beneficios</a><a href="#catalogo">Catálogo</a><a href="#pasos">Cómo funciona</a><a href="#comunidad">Comunidad</a></nav>
         <span><button className="sec" onClick={onIngresar}>Ingresar</button> <button className="cta" onClick={onRegistro}>Crear cuenta</button></span>
       </header>
 
@@ -44,7 +47,7 @@ function Landing({ onIngresar, onRegistro }) {
         <h2>Nuestra propuesta de valor</h2>
         <p className="centro">Una plataforma digital que acompaña a mujeres que comienzan un emprendimiento, ayudándolas a organizar sus finanzas, desarrollar habilidades empresariales y conectarse con oportunidades de mentoría.</p>
         <div className="grid">
-          {MODULOS.map((m) => <article key={m.n} className="card"><h3>{m.i} {m.n}</h3><p>{m.d}</p></article>)}
+          {MODULOS.map((m) => <article key={m.n} className="card"><h3>{m.n}</h3><p>{m.d}</p></article>)}
         </div>
       </section>
 
@@ -69,9 +72,12 @@ function Landing({ onIngresar, onRegistro }) {
         </div>
       </section>
 
+      <Catalogo />
+      <Contacto />
+      <Chatbot />
       <footer className="pie">
         <p>ALIADAS · Educación, finanzas y comunidad</p>
-        <p><small>Contacto: wendyestefi1999@gmail.com</small></p>
+        <p><small>Contacto: wendyestefi1999@gmail.com</small> · <button className="link" style={{ color: '#fff' }} onClick={onAdmin}>Administradora</button></p>
       </footer>
     </div>
   );

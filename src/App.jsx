@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './supabase';
-import { sesionLocal, salirLocal, leerMov, guardarMov } from './local';
+import { pedir } from './api';
+import { leerSesion, borrarSesion } from './sesion';
 import Landing from './components/Landing';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
@@ -9,76 +9,83 @@ import Academia from './components/Academia';
 import Comunidad from './components/Comunidad';
 import Crecimiento from './components/Crecimiento';
 import Metas from './components/Metas';
+import Chatbot from './components/Chatbot';
+import Admin from './components/Admin';
+import { useCatalogo } from './useCatalogo';
+import Icono from './icons';
 import { useGuardado } from './useGuardado';
 
 import { MODULOS } from './modulos';
 
 function App() {
-  const [usuario, setUsuario] = useState(null);
+  const [usuario, setUsuario] = useState(leerSesion()); // {id, email, token}
   const [vista, setVista] = useState('inicio');
   const [modulo, setModulo] = useState('Inicio');
   const [movimientos, setMovimientos] = useState([]);
-  const [cursos, setCursos] = useState([]);
-  const [mentoras, setMentoras] = useState([]);
+  const { cursos, mentoras } = useCatalogo(); // viene del backend (MongoDB)
   const [extrasCursos, setExtrasCursos] = useGuardado('aliadas_cursos', []);
   const [extrasMentoras, setExtrasMentoras] = useGuardado('aliadas_mentoras', []);
   const [metas, setMetas] = useGuardado('aliadas_metas', []);
   const [aviso, setAviso] = useState('');
+  const [inscritos, setInscritos] = useState([]); // ids de cursos a los que está inscrita
+  const [avisoCursos, setAvisoCursos] = useState('');
   const [ambito, setAmbito] = useGuardado('aliadas_ambito', 'emprendimiento');
 
+  // Cursos a los que está inscrita
   useEffect(() => {
-    if (!supabase) { setUsuario(sesionLocal()); return; }
-    supabase.auth.getSession().then(({ data }) => setUsuario(data.session?.user ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setUsuario(s?.user ?? null));
-    return () => data.subscription.unsubscribe();
-  }, []);
+    if (!usuario) { setInscritos([]); return; }
+    pedir('/api/inscripciones', { token: usuario.token }).then(setInscritos).catch(() => {});
+  }, [usuario?.id]);
 
-  useEffect(() => {
-    async function cargar() {
-      const pedir = async (f) => (await fetch(f)).json();
-      setCursos(await pedir('cursos.json'));
-      setMentoras(await pedir('mentoras.json'));
+  // Si ya está inscrita se cancela; si no, se inscribe.
+  async function alternarInscripcion(cursoId) {
+    const estaba = inscritos.includes(cursoId);
+    try {
+      await pedir(estaba ? `/api/inscripciones/${cursoId}` : '/api/inscripciones', {
+        metodo: estaba ? 'DELETE' : 'POST', cuerpo: estaba ? undefined : { curso: cursoId }, token: usuario.token
+      });
+      setInscritos(estaba ? inscritos.filter((i) => i !== cursoId) : [...inscritos, cursoId]);
+      setAvisoCursos('');
+    } catch (e) {
+      setAvisoCursos(e.message);
     }
-    cargar();
-  }, []);
+  }
 
+  // Movimientos de la usuaria, desde MongoDB
   useEffect(() => {
     async function cargarMov() {
       if (!usuario) { setMovimientos([]); return; }
-      if (!supabase) { setMovimientos(leerMov(usuario.id)); return; }
-      const { data, error } = await supabase.from('movimientos').select('*').order('fecha');
-      if (error) setAviso('No se pudieron cargar tus movimientos (' + error.message + '). Revisa que ejecutaste supabase-setup.sql en Supabase.');
-      setMovimientos(data || []);
+      try {
+        setMovimientos(await pedir('/api/movimientos', { token: usuario.token }));
+        setAviso('');
+      } catch (e) {
+        setAviso(e.message);
+        if (e.message.includes('sesión venció')) salir();
+      }
     }
     cargarMov();
   }, [usuario?.id]);
 
   async function agregar(mov) {
-    if (!supabase) {
-      const nuevo = [...movimientos, { id: Date.now(), ...mov, ambito }];
-      setMovimientos(nuevo);
-      guardarMov(usuario.id, nuevo);
-      return;
-    }
-    const { data, error } = await supabase.from('movimientos').insert({ ...mov, ambito }).select().single();
-    if (error) {
-      setAviso('No se pudo guardar en la base de datos (' + error.message + '). Quedó solo en esta sesión. Revisa que ejecutaste supabase-setup.sql en Supabase.');
-      setMovimientos([...movimientos, { id: Date.now(), ...mov, ambito }]);
-    } else {
+    try {
+      const nuevo = await pedir('/api/movimientos', { metodo: 'POST', cuerpo: { ...mov, ambito }, token: usuario.token });
+      setMovimientos([...movimientos, nuevo]);
       setAviso('');
-      setMovimientos([...movimientos, data]);
+    } catch (e) {
+      setAviso(e.message);
     }
   }
 
-  async function salir() {
-    if (supabase) await supabase.auth.signOut();
-    else { salirLocal(); setUsuario(null); }
+  function salir() {
+    borrarSesion();
+    setUsuario(null);
     setVista('inicio');
   }
 
   if (!usuario) {
+    if (vista === 'admin') return <Admin onVolver={() => setVista('inicio')} />;
     if (vista === 'inicio') {
-      return <Landing onIngresar={() => setVista('ingresar')} onRegistro={() => setVista('registro')} />;
+      return <Landing onIngresar={() => setVista('ingresar')} onRegistro={() => setVista('registro')} onAdmin={() => setVista('admin')} />;
     }
     return <Auth modo={vista} onCambiar={setVista} onVolver={() => setVista('inicio')} onEntrar={setUsuario} />;
   }
@@ -94,7 +101,7 @@ function App() {
         <nav>
           {MODULOS.map((m) => (
             <button key={m.n} className={m.n === modulo ? 'activo' : ''} onClick={() => setModulo(m.n)}>
-              <span>{m.i}</span><b>{m.n}</b>
+              <Icono nombre={m.i} /><b>{m.n}</b>
             </button>
           ))}
         </nav>
@@ -112,7 +119,7 @@ function App() {
         )}
         {modulo === 'Inicio' && <Dashboard movimientos={movs} nombre={nombre} ambito={ambito} />}
         {modulo === 'Mis finanzas' && <Finanzas movimientos={movs} ambito={ambito} onAgregar={agregar} aviso={aviso} nombre={nombre} />}
-        {modulo === 'Academia' && <Academia cursos={[...cursos, ...extrasCursos]} onAgregar={(c) => setExtrasCursos([...extrasCursos, { id: Date.now(), ...c }])} />}
+        {modulo === 'Academia' && <Academia cursos={[...cursos, ...extrasCursos.map((c) => ({ ...c, local: true }))]} inscritos={inscritos} onInscribir={alternarInscripcion} aviso={avisoCursos} onAgregar={(c) => setExtrasCursos([...extrasCursos, { id: Date.now(), ...c }])} />}
         {modulo === 'Comunidad' && <Comunidad mentoras={[...mentoras, ...extrasMentoras]} onAgregar={(m) => setExtrasMentoras([...extrasMentoras, { id: Date.now(), ...m }])} />}
         {modulo === 'Mi crecimiento' && (
           <>
@@ -121,6 +128,7 @@ function App() {
           </>
         )}
       </main>
+      <Chatbot />
     </div>
   );
 }

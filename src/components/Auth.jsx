@@ -1,26 +1,30 @@
 import { useState } from 'react';
-import { supabase } from '../supabase';
-import { registrarLocal, ingresarLocal } from '../local';
+import { pedir } from '../api';
+import { guardarSesion } from '../sesion';
 
+// Registro e ingreso de usuarias: las cuentas viven en MongoDB (contraseña cifrada en el backend).
 function Auth({ modo, onCambiar, onVolver, onEntrar }) {
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
   const [mensaje, setMensaje] = useState('');
+  const [cargando, setCargando] = useState(false);
   const registro = modo === 'registro';
 
   async function enviar() {
     setMensaje('');
-    if (supabase) {
-      const { data, error } = registro
-        ? await supabase.auth.signUp({ email, password: clave })
-        : await supabase.auth.signInWithPassword({ email, password: clave });
-      if (error) setMensaje(error.message);
-      else if (registro && !data.session) setMensaje('Listo. Revisa tu correo para confirmar tu cuenta y luego ingresa.');
-    } else {
-      const r = registro ? await registrarLocal(email, clave) : await ingresarLocal(email, clave);
-      if (r.error) setMensaje(r.error);
-      else onEntrar(r.user);
+    setCargando(true);
+    try {
+      const d = await pedir(registro ? '/api/usuarias/registro' : '/api/usuarias/ingreso', {
+        metodo: 'POST',
+        cuerpo: { correo: email, clave }
+      });
+      const sesion = { id: d.usuaria.id, email: d.usuaria.email, token: d.token };
+      guardarSesion(sesion);
+      onEntrar(sesion);
+    } catch (e) {
+      setMensaje(e.message);
     }
+    setCargando(false);
   }
 
   return (
@@ -28,10 +32,12 @@ function Auth({ modo, onCambiar, onVolver, onEntrar }) {
       <article className="card">
         <h2>{registro ? 'Crea tu cuenta' : 'Ingresa a ALIADAS'}</h2>
         <input placeholder="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input placeholder="Contraseña (mín. 6 caracteres)" type="password" value={clave} onChange={(e) => setClave(e.target.value)} />
-        <button className="cta" onClick={enviar}>{registro ? 'Registrarme' : 'Ingresar'}</button>
+        <input placeholder="Contraseña (mín. 6 caracteres)" type="password" value={clave} onChange={(e) => setClave(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviar()} />
+        <button className="cta" onClick={enviar} disabled={cargando}>
+          {cargando ? 'Un momento…' : registro ? 'Registrarme' : 'Ingresar'}
+        </button>
+        {cargando && <small>Si el servidor estaba dormido, puede tardar hasta un minuto.</small>}
         {mensaje && <p className="aviso">{mensaje}</p>}
-        {!supabase && <small>Modo de prueba: tus datos se guardan solo en este navegador.</small>}
         <p>
           <button className="link" onClick={() => onCambiar(registro ? 'ingresar' : 'registro')}>
             {registro ? 'Ya tengo cuenta' : 'Crear cuenta nueva'}
